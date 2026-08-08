@@ -1,0 +1,14 @@
+interface:
+  display_name: Coc VSCode Sync
+  short_description: Safely port VS Code upstream changes into coc extensions
+  default_prompt: Use $coc-vscode-sync to synchronize this coc extension with its
+    VS Code upstream without losing coc-specific behavior.
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

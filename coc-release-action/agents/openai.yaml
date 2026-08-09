@@ -1,0 +1,4 @@
+interface:
+  display_name: "Coc Release Action"
+  short_description: "Add safe scheduled npm release workflows to coc extensions"
+  default_prompt: "Use $coc-release-action to add a daily GitHub Actions release workflow to this coc.nvim extension."

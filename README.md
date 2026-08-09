@@ -24,6 +24,7 @@ conventions.
 | [`coc-test`](coc-test/SKILL.md) | Add, migrate, or repair `coc-test` integration-test support for a coc.nvim extension without breaking existing unit tests, the build, or coc-specific behavior. |
 | [`coc-audit`](coc-audit/SKILL.md) | Comprehensive code audit of a coc.nvim extension: real bugs, lifecycle problems, LSP issues, performance and memory risks, compatibility problems, unsafe coc.nvim API assumptions, and missing tests. |
 | [`coc-release-check`](coc-release-check/SKILL.md) | Decide whether a coc.nvim extension is safe to publish: validate the release candidate, build, tests, publish artifact, and publication safety. Returns **ready**, **ready with documented exceptions**, or **blocked**. |
+| [`coc-release-action`](coc-release-action/SKILL.md) | Add a daily GitHub Actions workflow that builds, tests, records commits in `history.md`, increments the patch version, pushes a release commit/tag, and publishes a coc extension to npm. |
 
 ## How to use
 
@@ -39,6 +40,7 @@ dispatches to the specialized skills:
 | Add, migrate, or repair integration tests using `coc-test` | `coc-test` |
 | Inspect the codebase for bugs, risks, or missing tests | `coc-audit` |
 | Decide whether an extension is ready to publish | `coc-release-check` |
+| Add or repair a scheduled npm release workflow | `coc-release-action` |
 
 ## Repository layout
 
@@ -52,6 +54,7 @@ coc-vscode-sync/               # upstream sync skill + extras:
 coc-test/                      # coc-test integration-test skill
 coc-audit/                     # code audit skill
 coc-release-check/             # release readiness skill
+coc-release-action/            # scheduled GitHub Actions release skill + workflow asset
 ```
 
 ## License

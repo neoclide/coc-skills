@@ -153,6 +153,11 @@ Use coc-test when they depend on:
 
 Do not migrate unrelated unit tests merely to standardize tooling.
 
+Note that coc.nvim test mode disables config-file writes and the
+`/tmp/.vim/coc-settings.json` workspace-folder config persists across test runs,
+so integration tests should use User-target configuration updates and explicit
+resets them.
+
 ## 3. Add coc-test as a development dependency
 
 First check whether `coc-test` is already declared.
@@ -182,12 +187,14 @@ Recommended naming:
 {
   "scripts": {
     "test": "...existing unit-test command...",
-    "test:integration": "coc-test <integration-test-files>",
-    "test:integration:nvim": "coc-test --nvim <integration-test-files>",
-    "test:integration:vim": "coc-test --vim <integration-test-files>"
+    "test:integration": "npm run build && coc-test <integration-test-files>",
+    "test:integration:nvim": "npm run build && coc-test --nvim <integration-test-files>",
+    "test:integration:vim": "npm run build && coc-test --vim <integration-test-files>"
   }
 }
 ```
+
+Add `"build": "tsc -p tsconfig.json"` to `scripts` when it's not exists.
 
 Only add scripts that provide real value.
 

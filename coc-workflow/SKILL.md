@@ -1,6 +1,6 @@
 ---
 name: coc-workflow
-description: Maintain coc.nvim extensions safely from investigation through implementation and verification. Use for routine maintenance, bug fixes, features, refactors, dependency or tooling updates, documentation, configuration, commands, providers, language-server integration, tests, CI, upstream synchronization, audits, issue work, and release preparation in coc.nvim plugin repositories. Route specialized work to coc-issue, coc-test, coc-vscode-sync, coc-audit, or coc-release-check while preserving coc.nvim-specific behavior and repository conventions. Use Full workflow mode when the user explicitly asks for a complete maintenance workflow or for every referenced coc skill to run in sequence.
+description: Maintain coc.nvim extensions safely from investigation through implementation and verification. Use for routine maintenance, bug fixes, features, refactors, dependency or tooling updates, documentation, configuration, commands, providers, language-server integration, tests, CI, upstream synchronization, audits, issue work, release automation, and release preparation in coc.nvim plugin repositories. Route specialized work to coc-issue, coc-test, coc-vscode-sync, coc-audit, coc-release-action, or coc-release-check while preserving coc.nvim-specific behavior and repository conventions. Use Full workflow mode when the user explicitly asks for a complete maintenance workflow or for every Full workflow phase to run in sequence.
 ---
 
 # Maintain a coc.nvim Extension
@@ -17,7 +17,10 @@ Use this skill as the coordinator. Apply a specialized skill when the task match
 | Port or compare changes from a VS Code or other upstream extension | `coc-vscode-sync` |
 | Add, migrate, or repair integration tests using coc-test | `coc-test` |
 | Inspect the codebase for bugs, risks, or missing tests | `coc-audit` |
+| Add or repair a scheduled npm release workflow | `coc-release-action` |
 | Decide whether an extension is ready to publish | `coc-release-check` |
+
+`coc-release-action` is opt-in even during Full workflow mode because it introduces persistent publication automation. Apply it only when the user explicitly requests a scheduled release workflow.
 
 When tasks overlap, keep one requested outcome and apply specialized workflows only to their relevant phases. For example, use `coc-issue` to govern an issue fix and `coc-test` only for the integration-test work it requires. Do not turn a focused bug fix into a repository-wide audit or release review.
 

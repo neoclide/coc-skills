@@ -52,6 +52,7 @@ If `npm trust list` cannot be executed because npm is too old, authentication is
 4. Require an existing release baseline. The manifest version must identify a reachable release tag and must agree with the published package version. Stop for an explicit bootstrap decision when there is no prior tag or these values disagree.
 5. Inspect branch/tag protection and Actions settings. The workflow must be allowed to push a release commit and tag with `GITHUB_TOKEN`; otherwise use an approved release credential or report the blocker.
 6. Preserve unrelated local changes. Creating the workflow does not authorize running it, committing, pushing, tagging, or publishing.
+7. Make sure `node_modules` added to file `.gitignore`.
 
 The baseline assumes bare SemVer tags such as `1.2.3`, a tracked `history.md`, a tracked npm lockfile, and npmjs.org. Adapt every affected check consistently if the repository uses `v1.2.3`, another changelog layout, a monorepo subdirectory, a prerelease channel, or a different registry.
 

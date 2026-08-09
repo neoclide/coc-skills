@@ -9,7 +9,42 @@ Create a repository-specific `.github/workflows/release.yml` that builds and tes
 
 Use [assets/release.yml](assets/release.yml) as the baseline. Adapt it from repository evidence; do not copy it blindly.
 
-## 1. Inspect the target repository
+## 1. Verify npm Trusted Publishing
+
+Before modifying or running the npm publish workflow, verify that npm Trusted Publishing (OIDC) is already configured.
+
+1. Determine the npm package name from `package.json`.
+
+2. Check the existing npm trusted publisher configuration:
+
+```bash
+npm trust list <package-name> --json
+```
+
+3. Verify that a GitHub Actions trusted publisher exists and matches the current repository and publishing workflow:
+   - GitHub owner/organization matches the repository owner.
+   - Repository matches the current repository.
+   - Workflow filename matches the workflow that performs `npm publish`.
+   - Environment matches the workflow environment if one is configured.
+   - The trusted publisher is allowed to perform `npm publish`.
+
+4. Also inspect the publishing workflow and verify that the publishing job can request an OIDC token:
+
+```yaml
+permissions:
+  contents: read
+  id-token: write
+```
+
+5. Treat Trusted Publishing as correctly configured only when both conditions are satisfied:
+   - npm has the matching GitHub Actions trusted publisher.
+   - the GitHub Actions publishing job has `id-token: write`.
+
+If `npm trust list` reports that no trusted publisher exists, stop and instruct the user to configure npm Trusted Publishing before attempting to publish.
+
+If `npm trust list` cannot be executed because npm is too old, authentication is unavailable, or access is denied, do not assume Trusted Publishing is absent. Report that its status could not be verified and provide the required manual verification steps.
+
+## 2. Inspect the target repository
 
 1. Read applicable `AGENTS.md`, release documentation, `package.json`, `package-lock.json`, `history.md`, existing workflows, and recent release tags.
 2. Confirm that npm is the repository's package manager and that `npm run build` and `npm run test` exist. Keep these commands exact when the user requires them; do not hide missing scripts with `--if-present`.
@@ -20,7 +55,7 @@ Use [assets/release.yml](assets/release.yml) as the baseline. Adapt it from repo
 
 The baseline assumes bare SemVer tags such as `1.2.3`, a tracked `history.md`, a tracked npm lockfile, and npmjs.org. Adapt every affected check consistently if the repository uses `v1.2.3`, another changelog layout, a monorepo subdirectory, a prerelease channel, or a different registry.
 
-## 2. Create the workflow
+## 3. Create the workflow
 
 Create `.github/workflows/release.yml` from the bundled asset, then make these repository-specific choices:
 
@@ -30,11 +65,11 @@ Create `.github/workflows/release.yml` from the bundled asset, then make these r
 - Run `npm ci`, `npm run build`, and `npm run test` before planning a release.
 - Serialize release runs with workflow-level `concurrency` and do not cancel a release already in progress.
 - Grant only `contents: write` for the token-based baseline. Do not grant pull-request, issue, or administration permissions.
-- Validate the npm credential with `npm whoami` before changing the version or history. Use a granular automation token stored as the `NPM_TOKEN` repository or environment secret.
+- Validate the npm credential with `npm whoami` before changing the version or history.
 
 Prefer npm trusted publishing when the package and repository are already configured for it. In that variant, follow current npm requirements, grant `id-token: write`, remove the long-lived token path, and ensure the configured trusted-publisher workflow filename is exactly `release.yml`. Do not silently switch authentication modes or claim the npm-side trust configuration was created when it was not.
 
-## 3. Preserve the release invariants
+## 4. Preserve the release invariants
 
 Keep the following behavior in the generated workflow:
 
@@ -59,7 +94,7 @@ Do not use `npm version`'s automatic commit/tag behavior in addition to these co
 
 The two Git pushes and npm publication cannot form one atomic transaction. Validate authentication and branch policy before the first push. Retain the publish-only recovery path for a failure after both Git pushes. If the tag push succeeds but the branch push fails, stop and report the divergent remote state for manual repair; do not create another version automatically.
 
-## 4. Validate without releasing
+## 5. Validate without releasing
 
 1. Inspect the complete workflow and ensure it contains no placeholder, wrong branch, wrong Node version, wrong tag prefix, or mismatched history format.
 2. Parse/lint the YAML with the repository's existing workflow tooling or `actionlint` when available.
@@ -67,11 +102,11 @@ The two Git pushes and npm publication cannot form one atomic transaction. Valid
 4. Exercise the release-planning and history-generation logic in a disposable temporary Git/npm fixture when making nontrivial adaptations. Cover no-change, new-commit, missing-tag, and publish-only paths without contacting a real registry or remote.
 5. Run `git diff --check` and review `git status --short`. Do not trigger the workflow or publish a package as validation.
 
-## 5. Hand off operational prerequisites
+## 6. Hand off operational prerequisites
 
 Report the chosen UTC schedule and its local-time equivalent, Node version, tag convention, authentication mode, and validation performed. Call out all setup that code cannot perform safely:
 
-- create/configure `NPM_TOKEN`, or configure npm trusted publishing for the exact repository and `release.yml` filename;
+- If Trusted Publishing has not been configured on npm, stop before attempting npm publish
 - allow GitHub Actions read/write repository contents and permit the release identity through applicable branch/tag protection;
 - confirm the package name, registry, access level, and npm ownership;
 - decide how to repair an already-pushed tag if the subsequent branch push fails.

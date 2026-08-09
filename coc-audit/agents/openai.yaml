@@ -1,0 +1,4 @@
+interface:
+  display_name: "Coc Audit"
+  short_description: "Audit coc.nvim extensions for bugs and risks"
+  default_prompt: "Use $coc-audit to audit this coc.nvim extension for bugs, risks, and missing tests."

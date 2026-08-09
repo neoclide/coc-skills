@@ -48,7 +48,6 @@ dispatches to the specialized skills:
 coc-workflow/                  # coordinator skill
 coc-issue/                     # GitHub issue worker
 coc-vscode-sync/               # upstream sync skill + extras:
-  agents/openai.yaml           #   agent interface config (ChatGPT / Codex / API / Atlas)
   references/preservation-checklist.md  #   coc contract preservation checklist
   scripts/coc_contract_inventory.mjs    #   inventory script for the coc contract surface
 coc-test/                      # coc-test integration-test skill
@@ -56,6 +55,8 @@ coc-audit/                     # code audit skill
 coc-release-check/             # release readiness skill
 coc-release-action/            # scheduled GitHub Actions release skill + workflow asset
 ```
+
+Every skill also includes `agents/openai.yaml` with its agent interface metadata.
 
 ## License
 

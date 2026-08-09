@@ -1,0 +1,4 @@
+interface:
+  display_name: "Coc Workflow"
+  short_description: "Maintain coc.nvim extensions through verification"
+  default_prompt: "Use $coc-workflow to maintain this coc.nvim extension from investigation through verification."

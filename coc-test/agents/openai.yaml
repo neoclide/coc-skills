@@ -1,0 +1,4 @@
+interface:
+  display_name: "Coc Test"
+  short_description: "Add reliable coc.nvim integration-test support"
+  default_prompt: "Use $coc-test to add or repair coc-test integration coverage in this coc.nvim extension."

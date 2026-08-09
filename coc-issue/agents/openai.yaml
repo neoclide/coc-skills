@@ -1,0 +1,4 @@
+interface:
+  display_name: "Coc Issue"
+  short_description: "Process coc.nvim GitHub issues with evidence"
+  default_prompt: "Use $coc-issue to process the next open GitHub issue in this coc.nvim extension."

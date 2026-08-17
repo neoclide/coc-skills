@@ -5,7 +5,7 @@ description: Add or repair a daily GitHub Actions npm release workflow for a coc
 
 # Add a Scheduled coc.nvim Release Action
 
-Create a repository-specific `.github/workflows/release.yml` that builds and tests a coc.nvim extension every day, releases only when commits exist after the current release tag, prepends those commits to `history.md`, increments the patch version, commits and tags the release, pushes it, and publishes it to npm.
+Create a repository-specific `.github/workflows/release.yml` that builds and tests a coc.nvim extension every day, releases when commits exist after the latest release tag or the manifest version was bumped past it, prepends those commits to `history.md`, increments the patch version (unless the manifest already bumped it), commits and tags the release, pushes it, and publishes it to npm.
 
 Use [assets/release.yml](assets/release.yml) as the baseline. Adapt it from repository evidence; do not copy it blindly.
 
@@ -49,7 +49,7 @@ If `npm trust list` cannot be executed because npm is too old, authentication is
 1. Read applicable `AGENTS.md`, release documentation, `package.json`, `package-lock.json`, `history.md`, existing workflows, and recent release tags.
 2. Confirm that npm is the repository's package manager and that `npm run build` and `npm run test` exist. Keep these commands exact when the user requires them; do not hide missing scripts with `--if-present`.
 3. Determine the default branch, compatible Node.js version, npm registry, package access, history heading format, release tag convention, and whether build output is intentionally tracked.
-4. Require an existing release baseline. The manifest version must identify a reachable release tag and must agree with the published package version. Stop for an explicit bootstrap decision when there is no prior tag or these values disagree.
+4. Require an existing release baseline: at least one reachable SemVer release tag. The manifest version may equal the baseline (automatic patch flow) or be newer than it (intentional version bump / skip-level release); reject a manifest version older than the baseline. Stop for an explicit bootstrap decision when there is no prior tag.
 5. Inspect branch/tag protection and Actions settings. The workflow must be allowed to push a release commit and tag with `GITHUB_TOKEN`; otherwise use an approved release credential or report the blocker.
 6. Preserve unrelated local changes. Creating the workflow does not authorize running it, committing, pushing, tagging, or publishing.
 7. Make sure `node_modules` added to file `.gitignore`.
@@ -74,10 +74,10 @@ Prefer npm trusted publishing when the package and repository are already config
 
 Keep the following behavior in the generated workflow:
 
-1. Treat the release tag corresponding to `package.json#version` as the baseline and verify that it is an ancestor of `HEAD`. Do not select an unrelated tag with a broad `git describe`.
+1. Treat the newest SemVer release tag (bare or `v`-prefixed) as the baseline and verify that it is an ancestor of `HEAD`. Do not select an unrelated tag with a broad `git describe`. When `package.json#version` equals the baseline, proceed with the automatic flow; when it is newer than the baseline, treat it as a manual version bump (skip-level release) and release that exact version without re-incrementing; reject versions older than the baseline.
 2. Count commits in `<previous-tag>..HEAD`. Exit successfully without changing files when the count is zero and the current package version is already published.
 3. If `HEAD` is already tagged with the manifest version but that version is absent from npm, enter publish-only recovery. Build and test again, then retry only `npm publish`; do not bump the version or rewrite history.
-4. For a new release, run `npm version patch --no-git-tag-version`. This increments the smallest SemVer component and updates the lockfile when npm manages it.
+4. For a new release whose manifest version already matches the baseline, run `npm version patch --no-git-tag-version`. This increments the smallest SemVer component and updates the lockfile when npm manages it. When the manifest version was already bumped past the baseline, skip the increment and use the manifest version as-is.
 5. Generate one bullet per commit from the previous tag through the source `HEAD`, excluding the new release commit. Prepend the new version section to `history.md` while preserving the repository's existing heading/date style.
 6. Reject unexpected untracked files because `git commit -a` cannot include them. Inspect tracked build changes and include them only when the repository intentionally versions generated output.
 7. Run `npm pack --dry-run` and `git diff --check` before creating permanent Git state.

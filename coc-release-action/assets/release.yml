@@ -54,16 +54,40 @@ jobs:
 
           package_name="$(node -p "require('./package.json').name")"
           current_version="$(node -p "require('./package.json').version")"
-          previous_tag="$current_version"
 
-          if ! git rev-parse --verify --quiet "refs/tags/${previous_tag}^{commit}" >/dev/null; then
-            echo "::error::Expected release tag ${previous_tag} for package.json version ${current_version}"
+          # Baseline is the newest SemVer release tag (bare or v-prefixed), not
+          # necessarily package.json#version: a maintainer may have bumped the
+          # version manually between releases, skipping intermediate numbers.
+          previous_tag="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' '[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n 1)"
+          if [[ -z "$previous_tag" ]]; then
+            echo "::error::No SemVer release tag found; create the baseline release tag before running this workflow"
             exit 1
           fi
+          # Keep the original tag name for git operations; strip any "v" prefix
+          # only for version comparison with package.json.
+          previous_version="${previous_tag#v}"
 
           if ! git merge-base --is-ancestor "$previous_tag" HEAD; then
             echo "::error::Release tag ${previous_tag} is not an ancestor of HEAD"
             exit 1
+          fi
+
+          if [[ "$current_version" != "$previous_version" ]]; then
+            # Manifest version differs from the latest tag: either a manual
+            # version bump (release it as-is) or a regression (reject it).
+            if [[ "$(printf '%s\n%s\n' "$current_version" "$previous_version" | sort -V | tail -n 1)" != "$current_version" ]]; then
+              echo "::error::package.json version ${current_version} is older than latest release tag ${previous_tag}"
+              exit 1
+            fi
+            if git rev-parse --verify --quiet "refs/tags/${current_version}^{commit}" >/dev/null; then
+              echo "::error::Release tag ${current_version} already exists; inspect remote branch/tag divergence"
+              exit 1
+            fi
+            echo "Manifest version ${current_version} is newer than tag ${previous_tag}; releasing the bumped version directly."
+            echo "mode=release" >> "$GITHUB_OUTPUT"
+            echo "version=${current_version}" >> "$GITHUB_OUTPUT"
+            echo "previous_tag=${previous_tag}" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           commit_count="$(git rev-list --count "${previous_tag}..HEAD")"
@@ -96,7 +120,13 @@ jobs:
           set -euo pipefail
 
           previous_tag="${{ steps.release.outputs.previous_tag }}"
-          version="$(npm version patch --no-git-tag-version)"
+          if [[ -n "${{ steps.release.outputs.version }}" ]]; then
+            # Version already set by package.json (manual bump / skip-level
+            # release); do not increment it again.
+            version="${{ steps.release.outputs.version }}"
+          else
+            version="$(npm version patch --no-git-tag-version)"
+          fi
           version="${version#v}"
 
           if git rev-parse --verify --quiet "refs/tags/${version}^{commit}" >/dev/null; then

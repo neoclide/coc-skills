@@ -72,6 +72,40 @@ Behavior to rely on:
 
 Before using additional flags or programmatic APIs, verify them from the actual coc-test version used by the project.
 
+## Testing internal modules with entryFile
+
+To exercise the plugin's internal modules (state stores, services, parsers,
+utilities) from integration tests, **prefer coc-test's `entryFile`
+configuration over importing built output**. `coc-test` bundles the configured
+TypeScript source entry at test time, so tests import the source directly and
+share module state with the running plugin.
+
+Configure the source entry in the extension's `package.json`:
+
+```json
+{
+  "coc-test": {
+    "entryFile": "src/index.ts"
+  }
+}
+```
+
+Test files then import project modules with normal relative paths:
+
+```ts
+import { getStore } from '../src/index.ts'
+import { store } from '../src/store.ts'
+```
+
+These imports resolve to the same module instances the plugin itself runs, so
+state is shared between the plugin and the tests instead of loading independent
+copies. When `entryFile` is configured, integration tests run TypeScript
+sources directly: no `build` step is required and imports never depend on
+compiled output paths under `lib/`/`out/`.
+
+Verify `entryFile` support in the actual coc-test version used by the project
+before relying on it (see Core rule 7).
+
 # Workflow
 
 ## 1. Inspect the repository
@@ -187,14 +221,21 @@ Recommended naming:
 {
   "scripts": {
     "test": "...existing unit-test command...",
-    "test:integration": "npm run build && coc-test <integration-test-files>",
-    "test:integration:nvim": "npm run build && coc-test --nvim <integration-test-files>",
-    "test:integration:vim": "npm run build && coc-test --vim <integration-test-files>"
+    "test:integration": "coc-test <integration-test-files>",
+    "test:integration:nvim": "coc-test --nvim <integration-test-files>",
+    "test:integration:vim": "coc-test --vim <integration-test-files>"
   }
 }
 ```
 
-Add `"build": "tsc -p tsconfig.json"` to `scripts` when it's not exists.
+The examples assume `coc-test.entryFile` is configured (the preferred way to
+test internal modules), so integration tests run TypeScript sources directly
+and no `build` step is needed. Only when tests must run against compiled
+output does the script need a `build` prefix (see "Handle build
+requirements").
+
+Add `"build": "tsc -p tsconfig.json"` to `scripts` when it's missing and
+compiled output is actually needed.
 
 Only add scripts that provide real value.
 
@@ -221,6 +262,11 @@ Use the repository's actual integration-test path instead of copying this exampl
 ## 5. Adapt integration tests to coc-test
 
 Reuse the project's existing assertions and test cases wherever possible.
+
+When a test needs the plugin's internal modules, import them from TypeScript
+sources via `entryFile` (see "Testing internal modules with entryFile") so the
+test shares a single module instance with the running plugin instead of a
+separate copy of built output.
 
 Remove only harness code that coc-test makes redundant.
 
@@ -283,12 +329,14 @@ Port the **test intent**, not the VSCode test harness.
 
 ## 7. Handle build requirements
 
-Determine whether integration tests execute:
+Prefer testing TypeScript sources directly through `coc-test.entryFile`
+(see "Testing internal modules with entryFile"): no build step is required and
+tests share module state with the running plugin.
 
-- TypeScript source directly, or
-- compiled JavaScript output.
-
-If the plugin must be built before coc-test can load it, encode that dependency explicitly.
+Only when `entryFile` cannot be used — an installed coc-test version without
+the option, or tests that must exercise the exact compiled `main` artifact —
+does the plugin need to be built before coc-test can load it. In that case
+encode the dependency explicitly.
 
 Examples:
 
@@ -313,7 +361,7 @@ or, when the repository already has a lifecycle hook convention:
 
 Prefer the project's existing script style.
 
-Do not add redundant builds if the test tooling already compiles/transpiles the test sources.
+Do not add redundant builds if the test tooling already compiles/transpiles the test sources (with `entryFile`, that is exactly the case).
 
 ## 8. CI integration
 
@@ -430,6 +478,7 @@ The task is complete only when all applicable items are true:
 - The extension still builds/typechecks.
 - Existing unit tests pass.
 - At least one representative coc-test integration test passes.
+- Internal modules are imported from TypeScript sources via `entryFile` (preferred) or from verified built output, without path mismatches.
 - The full integration suite passes when the environment permits it.
 - Vim coverage still works if the repository actively supports Vim.
 - No VSCode test-host dependency was introduced.

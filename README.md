@@ -26,6 +26,37 @@ conventions.
 | [`coc-release-check`](coc-release-check/SKILL.md) | Decide whether a coc.nvim extension is safe to publish: validate the release candidate, build, tests, publish artifact, and publication safety. Returns **ready**, **ready with documented exceptions**, or **blocked**. |
 | [`coc-release-action`](coc-release-action/SKILL.md) | Add a daily GitHub Actions workflow that builds, tests, records commits in `history.md`, increments the patch version, pushes a release commit/tag, and publishes a coc extension to npm. |
 
+## Install
+
+Use the [`skills`](https://skills.sh/) CLI to discover and install the skills directly
+from this repository:
+
+```bash
+npx skills@latest add neoclide/coc-skills
+```
+
+The CLI discovers the repository's skills and detects supported coding agents,
+prompting for a selection when needed. To inspect the available skills without
+installing anything:
+
+```bash
+npx skills@latest add neoclide/coc-skills --list
+```
+
+Install only the coordinator skill globally for Codex:
+
+```bash
+npx skills@latest add neoclide/coc-skills --skill coc-workflow --agent codex --global --yes
+```
+
+Or install all skills globally for Codex without prompts:
+
+```bash
+npx skills@latest add neoclide/coc-skills --skill '*' --agent codex --global --yes
+```
+
+Omit `--global` to install into the current project instead.
+
 ## How to use
 
 Each `coc-*` folder is a self-contained skill. Install the folders you need into your

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Coc Create"
+  short_description: "Create tested coc.nvim extension projects"
+  default_prompt: "Use $coc-create to scaffold a new coc.nvim extension with coc-test support."

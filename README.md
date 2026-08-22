@@ -19,6 +19,7 @@ conventions.
 | Skill | Purpose |
 | --- | --- |
 | [`coc-workflow`](coc-workflow/SKILL.md) | **Coordinator skill.** Maintain a coc.nvim extension from investigation through implementation and verification. Routes specialized work to the other skills below, or runs the full workflow in sequence when requested. |
+| [`coc-create`](coc-create/SKILL.md) | Create a new TypeScript coc.nvim extension with a minimal command, build configuration, `coc-test` integration coverage, and Vim/Neovim CI. |
 | [`coc-issue`](coc-issue/SKILL.md) | Process open GitHub issues one at a time: reproduce bugs, implement valid feature requests, add regression or acceptance tests for every change, validate the repository, and explain clearly why an issue cannot be fixed. |
 | [`coc-vscode-sync`](coc-vscode-sync/SKILL.md) | Safely synchronize a coc.nvim extension with changes from a VS Code (or other editor) upstream, while preserving coc-specific commands, settings, activation, language-server wiring, and lifecycle cleanup. |
 | [`coc-test`](coc-test/SKILL.md) | Add, migrate, or repair `coc-test` integration-test support for a coc.nvim extension without breaking existing unit tests, the build, or coc-specific behavior. |
@@ -66,6 +67,7 @@ dispatches to the specialized skills:
 
 | Task | Specialized skill |
 | --- | --- |
+| Create a new coc.nvim extension | `coc-create` |
 | Triage or resolve GitHub issues | `coc-issue` |
 | Port or compare changes from a VS Code or other upstream extension | `coc-vscode-sync` |
 | Add, migrate, or repair integration tests using `coc-test` | `coc-test` |
@@ -77,6 +79,7 @@ dispatches to the specialized skills:
 
 ```
 coc-workflow/                  # coordinator skill
+coc-create/                    # new extension scaffolding skill + tested template generator
 coc-issue/                     # GitHub issue worker
 coc-vscode-sync/               # upstream sync skill + extras:
   references/preservation-checklist.md  #   coc contract preservation checklist

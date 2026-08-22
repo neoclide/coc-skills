@@ -1,0 +1,35 @@
+{
+  "name": __PACKAGE_NAME_JSON__,
+  "version": "0.0.1",
+  "description": __DESCRIPTION_JSON__,
+  "main": "lib/index.js",
+  "files": [
+    "lib"
+  ],
+  "engines": {
+    "node": ">=22.15.0",
+    "coc": "^0.0.82"
+  },
+  "activationEvents": [
+    "onCommand:__COMMAND_ID_TEXT__"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "__COMMAND_ID_TEXT__",
+        "title": "Say hello from __DISPLAY_NAME_TEXT__"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "prepare": "npm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run test:nvim",
+    "test:nvim": "coc-test --nvim \"test/**/*.test.ts\"",
+    "test:vim": "coc-test --vim \"test/**/*.test.ts\""
+  },
+  "coc-test": {
+    "entryFile": "src/index.ts"
+  }
+}

@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict'
+import { describe, it } from 'node:test'
+import { commands, workspace } from 'coc.nvim'
+import { commandId, greeting } from '../src/index.ts'
+
+describe(__PACKAGE_NAME_JSON__, () => {
+  it('activates and registers its command', () => {
+    assert.equal(commands.has(commandId), true)
+  })
+
+  it('provides the example behavior', () => {
+    assert.equal(greeting('Vim'), 'Hello from Vim!')
+  })
+
+  it('communicates with Vim or Neovim', async () => {
+    assert.equal(await workspace.nvim.eval('1 + 1'), 2)
+  })
+})

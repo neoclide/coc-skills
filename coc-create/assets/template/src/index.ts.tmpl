@@ -1,0 +1,15 @@
+import { commands, ExtensionContext, window } from 'coc.nvim'
+
+export const commandId = __COMMAND_ID_JSON__
+
+export function greeting(name = 'coc.nvim'): string {
+  return `Hello from ${name}!`
+}
+
+export function activate(context: ExtensionContext): void {
+  context.subscriptions.push(commands.registerCommand(commandId, async (name?: string) => {
+    const message = greeting(name)
+    await window.showInformationMessage(message)
+    return message
+  }))
+}

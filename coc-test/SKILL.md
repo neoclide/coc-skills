@@ -230,9 +230,11 @@ Recommended naming:
 
 The examples assume `coc-test.entryFile` is configured (the preferred way to
 test internal modules), so integration tests run TypeScript sources directly
-and no `build` step is needed. Only when tests must run against compiled
-output does the script need a `build` prefix (see "Handle build
-requirements").
+and no `build` step is needed. When `entryFile` is configured, remove
+`npm run build &&` (or the package-manager equivalent) from coc-test scripts
+and remove any lifecycle hook whose only purpose is to build before those
+scripts. Only tests that must run against compiled output need a `build`
+prefix (see "Handle build requirements").
 
 Add `"build": "tsc -p tsconfig.json"` to `scripts` when it's missing and
 compiled output is actually needed.
@@ -331,7 +333,8 @@ Port the **test intent**, not the VSCode test harness.
 
 Prefer testing TypeScript sources directly through `coc-test.entryFile`
 (see "Testing internal modules with entryFile"): no build step is required and
-tests share module state with the running plugin.
+tests share module state with the running plugin. Test-related scripts must not
+prepend `npm run build &&` (or an equivalent build command) in this case.
 
 Only when `entryFile` cannot be used — an installed coc-test version without
 the option, or tests that must exercise the exact compiled `main` artifact —

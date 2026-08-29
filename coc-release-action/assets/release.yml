@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: write
+  # npm Trusted Publishing exchanges this GitHub OIDC identity for a
+  # short-lived publish credential. Do not add an npm token secret.
   id-token: write
 
 concurrency:
@@ -204,4 +206,6 @@ jobs:
 
       - name: Publish to npm
         if: steps.release.outputs.mode == 'release' || steps.release.outputs.mode == 'publish-only'
+        # Authentication is provided exclusively by npm Trusted Publishing
+        # through GitHub OIDC; this workflow must not use NODE_AUTH_TOKEN.
         run: npm publish

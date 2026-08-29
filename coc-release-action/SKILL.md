@@ -1,6 +1,6 @@
 ---
 name: coc-release-action
-description: Add or repair a daily GitHub Actions npm release workflow for a coc.nvim extension. Use when creating `.github/workflows/release.yml`, automating patch releases, generating `history.md` entries from commits since the last tag, configuring scheduled npm publication, or reviewing an existing coc extension release Action for tag, version, permission, credential, concurrency, and failure-recovery problems.
+description: Add or repair a daily GitHub Actions OIDC npm release workflow for a coc.nvim extension. Use when creating `.github/workflows/release.yml`, automating patch releases, generating `history.md` entries from commits since the last tag, configuring scheduled npm publication, or reviewing an existing coc extension release Action for tag, version, permission, Trusted Publishing, concurrency, and failure-recovery problems.
 ---
 
 # Add a Scheduled coc.nvim Release Action
@@ -9,26 +9,20 @@ Create a repository-specific `.github/workflows/release.yml` that builds and tes
 
 Use [assets/release.yml](assets/release.yml) as the baseline. Adapt it from repository evidence; do not copy it blindly.
 
-## 1. Verify npm Trusted Publishing
+## 1. Require npm Trusted Publishing
 
-Before modifying or running the npm publish workflow, verify that npm Trusted Publishing (OIDC) is already configured.
+Use npm Trusted Publishing (OIDC) as the only npm publication method. Do not add or use `NODE_AUTH_TOKEN`, `NPM_TOKEN`, automation tokens, granular access tokens, or other long-lived npm credentials.
 
 1. Determine the npm package name from `package.json`.
 
-2. Check the existing npm trusted publisher configuration:
-
-```bash
-npm trust list <package-name> --json
-```
-
-3. Verify that a GitHub Actions trusted publisher exists and matches the current repository and publishing workflow:
+2. Ask the user to verify on the npm website that a GitHub Actions trusted publisher exists and matches the current repository and publishing workflow:
    - GitHub owner/organization matches the repository owner.
    - Repository matches the current repository.
    - Workflow filename matches the workflow that performs `npm publish`.
    - Environment matches the workflow environment if one is configured.
    - The trusted publisher is allowed to perform `npm publish`.
 
-4. Also inspect the publishing workflow and verify that the publishing job can request an OIDC token:
+3. Inspect the publishing workflow and verify that the publishing job can request an OIDC token:
 
 ```yaml
 permissions:
@@ -36,13 +30,11 @@ permissions:
   id-token: write
 ```
 
-5. Treat Trusted Publishing as correctly configured only when both conditions are satisfied:
-   - npm has the matching GitHub Actions trusted publisher.
+4. Treat Trusted Publishing as correctly configured only when both conditions are satisfied:
+   - the user confirms the matching GitHub Actions trusted publisher on npm;
    - the GitHub Actions publishing job has `id-token: write`.
 
-If `npm trust list` reports that no trusted publisher exists, stop and instruct the user to configure npm Trusted Publishing before attempting to publish.
-
-If `npm trust list` cannot be executed because npm is too old, authentication is unavailable, or access is denied, do not assume Trusted Publishing is absent. Report that its status could not be verified and provide the required manual verification steps.
+Never run `npm whoami`, `npm login`, `npm adduser`, `npm trust`, `npm token`, `npm profile`, `npm access`, or any other command that requires an npm login. Do not run `npm publish` from the agent's local environment. The generated GitHub Actions workflow may run `npm publish` only through OIDC. If the npm-side Trusted Publisher cannot be confirmed without an authenticated command, report it as an external prerequisite instead of probing it.
 
 ## 2. Inspect the target repository
 
@@ -65,10 +57,9 @@ Create `.github/workflows/release.yml` from the bundled asset, then make these r
 - Select a Node.js version supported by the repository and its dependencies. Prefer the version already used by CI unless npm authentication imposes a higher minimum.
 - Run `npm ci`, `npm run build`, and `npm run test` before planning a release.
 - Serialize release runs with workflow-level `concurrency` and do not cancel a release already in progress.
-- Grant only `contents: write` for the token-based baseline. Do not grant pull-request, issue, or administration permissions.
-- Validate the npm credential with `npm whoami` before changing the version or history.
-
-Prefer npm trusted publishing when the package and repository are already configured for it. In that variant, follow current npm requirements, grant `id-token: write`, remove the long-lived token path, and ensure the configured trusted-publisher workflow filename is exactly `release.yml`. Do not silently switch authentication modes or claim the npm-side trust configuration was created when it was not.
+- Grant only `contents: write` and `id-token: write`. Do not grant pull-request, issue, or administration permissions.
+- Publish with plain `npm publish` in the GitHub Actions job so npm obtains the short-lived credential through OIDC. Do not configure or validate a long-lived npm credential.
+- Ensure the npm Trusted Publisher workflow filename is exactly `release.yml`. Do not claim the npm-side trust configuration was created or verified when the user has not confirmed it.
 
 ## 4. Preserve the release invariants
 
@@ -107,7 +98,7 @@ The two Git pushes and npm publication cannot form one atomic transaction. Valid
 
 Report the chosen UTC schedule and its local-time equivalent, Node version, tag convention, authentication mode, and validation performed. Call out all setup that code cannot perform safely:
 
-- If Trusted Publishing has not been configured on npm, stop before attempting npm publish
+- configure and confirm the matching GitHub Actions Trusted Publisher on the npm website before running the workflow;
 - allow GitHub Actions read/write repository contents and permit the release identity through applicable branch/tag protection;
 - confirm the package name, registry, access level, and npm ownership;
 - decide how to repair an already-pushed tag if the subsequent branch push fails.

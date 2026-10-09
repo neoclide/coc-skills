@@ -1,198 +1,70 @@
 ---
-description: Comprehensive code audit skill for coc.nvim extensions.
-  Finds bugs, lifecycle issues, LSP problems, performance issues,
-  compatibility risks, and missing tests.
 name: coc-audit
+description: Comprehensive code audit of a coc.nvim extension. Finds real bugs, lifecycle and disposal problems, LSP issues, async races, performance and memory risks, security risks, Vim/Neovim and coc.nvim compatibility problems, unsafe coc.nvim API assumptions, and missing tests. Use when asked to audit, review, or inspect a coc.nvim extension codebase; reports findings without modifying code.
 ---
 
-# coc.nvim Plugin Code Audit Skill
+# Audit a coc.nvim Extension
 
-## Purpose
-
-Perform a comprehensive code audit for coc.nvim extensions.
-
-The goal is to identify: - real bugs - lifecycle problems -
-compatibility issues - performance problems - missing tests - unsafe
-assumptions about coc.nvim APIs - maintainability issues
-
-Do not refactor code unless explicitly requested. Focus on actionable
-problems.
-
-## Audit Workflow
-
-### 1. Understand Plugin Architecture
-
-Read: - package.json - README.md - activation entry - typings - test
-configuration
-
-Identify: - activation entry point - commands - configuration options -
-providers - background processes - dependencies - supported coc.nvim
-versions
-
-Create a short architecture summary.
-
-### 2. Activation Lifecycle Audit
-
-Review: - activate() - deactivate() - ExtensionContext - subscriptions -
-event listeners - timers - child processes - watchers - sockets
-
-Find: - resource leaks - missing disposal - timers not cleared -
-listeners not removed - processes not terminated
-
-Every finding should include: - location - problem - impact - fix
-direction
-
-### 3. coc.nvim API Usage Audit
-
-Check: - commands registration and disposal - workspace configuration -
-event handling - window APIs - workspace APIs
-
-Verify: - correct API usage - deprecated APIs - invalid assumptions -
-missing error handling
-
-### 4. LSP Audit
-
-Review: - language client lifecycle - initialization - capabilities -
-requests - responses - cancellation - progress handling - JSON-RPC
-errors
-
-Look for: - server leaks - initialization races - incorrect protocol
-handling
-
-### 5. Async Audit
-
-Check: - unhandled promises - swallowed errors - race conditions -
-duplicate initialization - stale async state updates
-
-### 6. Node.js Runtime Audit
-
-Review: - CommonJS/ESM compatibility - filesystem operations -
-child_process usage - Node version compatibility
-
-For processes check: - exit handling - stderr handling - cleanup -
-zombie processes
-
-### 7. Performance Audit
-
-Prioritize editor responsiveness.
-
-Review hot paths: - completion - diagnostics - hover - code actions -
-document change handlers
-
-Find: - blocking operations - repeated parsing - unnecessary scans -
-missing caching
-
-### 8. Memory Audit
-
-Check: - unbounded caches - retained document objects - event listener
-accumulation - global mutable state
-
-### 9. Security Audit
-
-Review: - external command execution - unsafe shell usage - file
-access - temporary files
-
-Prefer safe argument passing instead of shell concatenation.
-
-### 10. Compatibility Audit
-
-Check: - Vim compatibility - Neovim compatibility - coc.nvim version
-compatibility - deprecated APIs
-
-Avoid speculative compatibility layers.
-
-### 11. Testing Audit
-
-Review tests for: - activation - commands - configuration - errors -
-disposal - LSP communication
-
-Prefer integration tests using coc-test.
-
-For every confirmed bug suggest: - reproduction case - regression test -
-expected behavior
-
-## Bug Classification
-
-### Critical
-
--   crashes
--   data loss
--   security issues
--   broken activation
-
-### High
-
--   unusable features
--   memory leaks
--   incorrect LSP behavior
-
-### Medium
-
--   performance problems
--   missing cleanup
--   poor error handling
-
-### Low
-
--   maintainability issues
--   minor improvements
-
-## Output Format
-
-Return findings only.
-
-Use:
-
-# Audit Summary
-
-Plugin: Version: Audit date:
-
-## Critical
-
-### Issue title
-
-File: Line:
-
-Problem:
-
-Impact:
-
-Reproduction:
-
-Suggested fix:
-
-Suggested test:
-
-## High
-
-...
-
-## Medium
-
-...
-
-## Low
-
-...
-
-# Missing Tests
-
--   test description
--   reason
-
-# Overall Assessment
-
-Short summary.
+Report actionable, evidence-backed problems. Do not modify code or refactor during an audit unless explicitly asked.
 
 ## Rules
 
-1.  Do not praise code.
-2.  Do not report theoretical problems without evidence.
-3.  Every finding must include location, reason, impact, and fix
-    direction.
-4.  Prefer real bugs over style issues.
-5.  Do not modify code during audit.
-6.  Respect coc.nvim architecture.
-7.  Treat editor responsiveness as a priority.
-8.  Always check disposal and async lifecycle.
-9.  Always suggest regression tests for confirmed bugs.
+1. Report only problems with evidence in the code; no theoretical issues, no praise, no style nitpicks over real bugs.
+2. Every finding includes location, problem, impact, and fix direction.
+3. Respect coc.nvim architecture; do not recommend VS Code APIs or speculative compatibility layers.
+4. Treat editor responsiveness, disposal, and async lifecycle as priorities.
+5. Suggest a regression test for every confirmed bug, preferably a `coc-test` integration test.
+
+## Checklist
+
+1. **Architecture**: read `package.json`, `README.md`, the activation entry, typings, and test configuration. Identify commands, configuration, providers, background processes, dependencies, and the supported coc.nvim (`engines.coc`), Node.js, Vim, and Neovim versions. Write a short summary.
+2. **Lifecycle**: `activate()`/`deactivate()`, `context.subscriptions`, event listeners, timers, watchers, child processes, sockets. Look for missing disposal, uncleared timers, unremoved listeners, and unterminated processes.
+3. **coc.nvim API usage**: command registration, configuration reads and updates, events, `window`/`workspace` APIs. Look for incorrect or deprecated usage, invalid assumptions, and missing error handling.
+4. **LSP**: language-client lifecycle, initialization, capabilities, requests, cancellation, progress, JSON-RPC errors. Look for server leaks, initialization races, and protocol mistakes.
+5. **Async**: unhandled promises, swallowed errors, races, duplicate initialization, stale state updates.
+6. **Node.js runtime**: CommonJS/ESM compatibility, filesystem use, `child_process` exit/stderr handling and cleanup, zombie processes, Node version compatibility.
+7. **Performance**: hot paths (completion, diagnostics, hover, code actions, document-change handlers). Look for blocking work, repeated parsing, unnecessary scans, missing caching.
+8. **Memory**: unbounded caches, retained documents, accumulating listeners, global mutable state.
+9. **Security**: external command execution, shell concatenation (prefer argument arrays), file access, temporary files.
+10. **Compatibility**: Vim vs. Neovim differences and the declared coc.nvim version range.
+11. **Tests**: coverage of activation, commands, configuration, errors, disposal, and LSP communication.
+
+## Severity
+
+- **Critical**: crashes, data loss, security issues, broken activation.
+- **High**: unusable features, memory leaks, incorrect LSP behavior.
+- **Medium**: performance problems, missing cleanup, poor error handling.
+- **Low**: maintainability issues, minor improvements.
+
+## Output
+
+Return findings only, in this structure (omit empty severity sections):
+
+```markdown
+# Audit Summary
+
+Plugin: <name>  Version: <version>  Audit date: <date>
+
+## Critical
+
+### <Issue title>
+
+- Location: <file>:<line>
+- Problem:
+- Impact:
+- Reproduction:
+- Suggested fix:
+- Suggested test:
+
+## High / Medium / Low
+
+...
+
+## Missing Tests
+
+- <test description> — <reason>
+
+## Overall Assessment
+
+<short summary>
+```

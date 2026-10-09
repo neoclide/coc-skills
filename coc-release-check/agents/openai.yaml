@@ -1,4 +1,4 @@
 interface:
   display_name: "Coc Release Check"
   short_description: "Check coc.nvim extensions for release readiness"
-  default_prompt: "Decide whether a coc.nvim extension is safe to publish"
+  default_prompt: "Use $coc-release-check to decide whether this coc.nvim extension is safe to publish."

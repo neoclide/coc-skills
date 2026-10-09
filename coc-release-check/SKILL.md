@@ -5,100 +5,54 @@ description: Validate a coc.nvim extension before an npm release. Use when prepa
 
 # Check a coc.nvim Extension Release
 
-Decide whether the exact repository state is safe to release. Make no publication, tag, push, version bump, lockfile rewrite, or generated-file change unless the user explicitly requests it.
+Decide whether the exact repository state is safe to release, and return **ready**, **ready with documented exceptions**, or **blocked**. A passing command alone is not a release decision.
 
-Return one of: **ready**, **ready with documented exceptions**, or **blocked**. A passing command alone is not a release decision.
+Do not publish, tag, push, bump versions, rewrite lockfiles, or change generated files unless the user explicitly asks.
 
-## 1. Establish the release candidate
+## 1. Identify the candidate
 
-1. Read applicable `AGENTS.md`, `CONTRIBUTING.md`, release documentation, `package.json`, the package-manager lockfile, build/test configuration, and CI workflows.
-2. Run `git status --short`, inspect the current branch and recent tags/commits, and preserve unrelated local changes.
-3. Record the package name, manifest version, target registry, package manager, Node.js constraints, release ref/commit, and whether this is a stable, prerelease, or hotfix release.
-4. Compare the manifest version with the latest relevant tag and registry version when network access and registry scope are available. Treat a duplicate or lower publish version as blocking unless the configured registry policy explicitly allows it.
-5. If the intended package, registry, version, or release ref is ambiguous, report the ambiguity and stop before any state-changing command.
-
-Do not infer that every changed file belongs in the release. Verify the requested candidate from the actual diff and package contents.
+1. Read applicable `AGENTS.md`, `CONTRIBUTING.md`, release docs, `package.json`, the lockfile, build/test configuration, and CI.
+2. Run `git status --short`, inspect the branch and recent tags/commits, and preserve unrelated changes.
+3. Record package name, version, registry, package manager, Node.js constraints, release commit, and release type (stable, prerelease, hotfix).
+4. Compare the version with the latest tag and the registry when available. A duplicate or lower version is blocking unless the registry policy allows it.
+5. If the package, registry, version, or ref is ambiguous, report it and stop before any state-changing command.
 
 ## 2. Review release-facing changes
 
-Inspect the complete diff since the previous release (or the user-specified range), including package metadata and generated output required by the repository.
+Inspect the full diff since the previous release (or the user's range) and verify:
 
-Verify:
+- `package.json`: valid name, version, `main`/exports, activation events, `engines` (`node`, `coc`), dependencies, and `files`;
+- changelog/`history.md` accurately describes user-visible changes, migrations, and known limitations;
+- commands, configuration keys, language IDs, activation, bundled servers, and docs stay consistent;
+- dependency, lockfile, and license changes are intentional;
+- no debug logging, local paths, credentials, fixtures, logs, coverage, or stray generated files;
+- changed public behavior has a test or a documented reason it cannot be automated.
 
-- `package.json` has a valid name, version, `main`/exports/activation entry points, engine constraints, dependencies, and files/ignore policy;
-- the changelog or release notes describe user-visible fixes, changes, migrations, and known limitations accurately;
-- commands, configuration keys, language IDs, activation behavior, bundled language servers, and documentation remain consistent;
-- dependency, lockfile, and license changes are intentional and compatible with the project's policy;
-- no debug logging, local paths, credentials, test fixtures, editor logs, coverage output, or accidental generated artifacts are included;
-- public behavior that changed has a corresponding test or a documented reason it cannot be automated.
+Hotfixes must stay narrowly scoped; prereleases must be clearly marked in version and notes.
 
-For a hotfix, ensure the diff remains narrowly scoped. For a prerelease, ensure the version and release notes make the prerelease status clear.
+## 3. Build and test
 
-## 3. Validate the build and tests
+Use the repository's package manager and the scripts declared in `package.json` and CI (never guess names). Run as applicable: clean install or integrity check, typecheck/lint/format checks, production build, targeted regression tests, the full unit and `coc-test` integration suites, Vim and Neovim runs when both are supported or editor-facing behavior changed, and `git diff --check`.
 
-Use the repository's package manager. Start with the smallest relevant checks, then run the release-required checks defined by scripts or CI. Do not guess script names: inspect `package.json` first.
-
-At minimum, run all applicable checks that the project declares for release quality:
-
-1. clean install or dependency-integrity check when practical;
-2. type check, lint, and formatting checks when configured;
-3. production build;
-4. targeted regression tests for the release changes;
-5. full unit and integration suite, including `coc-test` tests when present;
-6. Vim and Neovim compatibility checks when the extension supports both or changed editor-facing behavior;
-7. `git diff --check`.
-
-Use observable hooks/events for asynchronous editor tests; do not accept fixed sleeps as proof of reliability. Distinguish a pre-existing failure from a release-candidate failure, but do not call the release ready if a required check is failing without an approved exception.
+Async editor tests must synchronize on events or hooks, not fixed sleeps. Distinguish pre-existing failures from candidate failures, but a failing required check blocks the release unless an exception is approved.
 
 ## 4. Inspect the publish artifact
 
-Build before packing if the package publishes compiled output. Then inspect the artifact without publishing:
+Build first if compiled output is published, then run `npm pack --dry-run` (or a verified equivalent). When needed, pack into a temporary directory and list it with `tar -tzf`. Remember that `files`, `main`, `bin`, README, and license rules affect contents, not just `.npmignore`.
 
-```bash
-npm pack --dry-run
-```
+The package must include the runtime entry and all referenced files, required runtime dependencies or bundled assets, required metadata (README, license), and any language-server binaries, schemas, snippets, or data needed at runtime. It must exclude tests, coverage, logs, caches, local config, secrets, dev-only files, oversized or duplicate binaries, and stale build output.
 
-Use the equivalent package-manager command only after verifying it produces the same npm package view. Inspect the reported file list and, when needed, create the tarball in a temporary directory and list it with `tar -tzf`.
+## 5. Smoke test
 
-Confirm that the package includes:
+When runtime shape, packaging, activation, or a bundled server changed, install the tarball into a fresh temporary location and exercise the smallest meaningful coc.nvim path: load the extension, activate it in a matching buffer or workspace, and invoke an affected command, provider, or language-client request, using real Vim/Neovim with coc.nvim when available. A successful install or `require()` does not prove activation. If no editor is available, say so and keep the risk open.
 
-- the activation/runtime entry point and all referenced compiled files;
-- runtime dependencies or bundled assets needed after installation;
-- README, license, and other package metadata required by project policy;
-- language-server binaries, data files, queries, snippets, or schemas when the extension needs them at runtime.
+## 6. Publication safety
 
-Confirm that it excludes:
+Confirm the candidate commit is intended; no private credentials, registries, or unintended provenance leak; the registry and dist-tag (`latest` vs. prerelease) are explicit; version, notes, and tag convention agree; required CI, signing, provenance, or approvals are complete; and no published version is overwritten or superseded by accident.
 
-- source-only test suites, coverage, editor logs, caches, local configuration, secrets, and development-only dependencies;
-- oversized or duplicate binaries and unintended files admitted by broad `files` globs;
-- stale build output that conflicts with the source or manifest version.
-
-Do not rely only on `.npmignore`: `files`, `main`, `bin`, README, and license rules can change what npm packs.
-
-## 5. Perform a fresh-install smoke test
-
-When the extension's runtime shape, packaging, activation, or bundled server changed, install the packed tarball into a fresh temporary consumer directory and verify the actual installed contents.
-
-Exercise the smallest meaningful coc.nvim path: install/load the extension, activate it in a matching buffer or workspace, and invoke an affected command, provider, or language-client operation. Use a real Vim/Neovim+coc environment when available. Never treat a successful `require()` or package install as proof that activation works.
-
-If live editor execution is unavailable, state that clearly and retain the release risk rather than inventing a smoke-test result.
-
-## 6. Check publication safety
-
-Before recommending publication, verify:
-
-- the working tree and candidate commit are the intended ones;
-- the repository will not publish private credentials, private registries, or unintended provenance;
-- the target registry and npm dist-tag are explicit and appropriate (`latest` versus a prerelease tag);
-- release notes, version, and git tag convention agree;
-- any required CI, signing, provenance, or maintainer approval is complete;
-- an existing published version will not be overwritten or superseded accidentally.
-
-Never run `npm publish`, create a git tag, push, create a GitHub release, or change registry/dist-tag configuration as part of this skill unless specifically authorized.
+Never run `npm publish`, create tags or GitHub releases, push, or change registry/dist-tag settings unless specifically authorized.
 
 ## Report
-
-Give a concise release decision with evidence:
 
 ```text
 Decision: ready | ready with documented exceptions | blocked
@@ -111,4 +65,4 @@ Exceptions and residual risks: <none or explicit owner/approval needed>
 Recommended next action: <publish command only if authorized, otherwise request authorization>
 ```
 
-Never imply that a command was run, a package was inspected, or a release was published when it was not.
+Never imply that a command ran, a package was inspected, or a release was published when it was not.

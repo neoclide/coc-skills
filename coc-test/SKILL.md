@@ -3,84 +3,42 @@ name: coc-test
 description: Add, migrate, or repair coc-test integration-test support for a coc.nvim extension without breaking the extension's existing tests, build, Vim/Neovim compatibility, or coc-specific behavior. Use when a coc.nvim plugin needs to run integration tests through coc-test, replace ad-hoc coc.nvim test harness code, add package scripts/CI coverage for coc-test, or make existing integration tests compatible with coc-test.
 ---
 
-# coc-test integration skill
+# Add coc-test Integration Tests
 
-Use this skill for **coc.nvim extension repositories** that need integration-test support through `coc-test`.
+Make the smallest reliable change that runs the extension's coc.nvim integration tests through `coc-test`, while preserving existing unit tests and project conventions.
 
-The goal is to make the smallest reliable change that lets the plugin execute its coc.nvim integration tests through `coc-test`, while preserving existing unit tests and project-specific behavior.
+## Rules
 
-## Core rules
+1. Inspect before modifying. Do not assume a package manager, test runner, test directory, or TypeScript layout.
+2. Keep pure unit tests on their existing runner. Use coc-test only for tests that need a running coc.nvim with Vim/Neovim.
+3. Migrate additively: remove an old harness only after coc-test covers and verifies the same behavior.
+4. Use the project's package manager: `package.json#packageManager` first, then the lockfile (`package-lock.json` npm, `pnpm-lock.yaml` pnpm, `yarn.lock` yarn, `bun.lock`/`bun.lockb` bun).
+5. Do not guess the coc-test API. Check `npx coc-test --help`, its README, or its types for the installed version before using anything not listed below.
+6. Port test intent, not a VS Code test harness. Never add `vscode-test`, `@vscode/test-*`, Electron, or extension-host assumptions, and never replace coc.nvim APIs with VS Code APIs to reuse upstream tests.
+7. Add a GitHub Actions workflow for the integration tests, plus a CI badge in `README.md`, when they are missing.
 
-1. **Inspect before modifying.**
-   Never assume the repository uses npm, Jest, Vitest, Mocha, a specific test directory, or a specific TypeScript layout.
-
-2. **Do not replace working unit tests with coc-test.**
-   `coc-test` is for tests that require a running coc.nvim + Vim/Neovim environment.
-   Keep pure unit tests on the existing test runner unless there is a concrete reason to move them.
-
-3. **Prefer additive migration.**
-   Add coc-test support first. Remove an old integration harness only after the same behavior is covered and verified through coc-test.
-
-4. **Preserve coc-specific behavior.**
-   Do not copy VSCode test infrastructure into the project when coc.nvim provides a different runtime, API, lifecycle, or editor model.
-
-5. **Do not introduce compatibility wrappers without need.**
-   Use the repository's current Node.js, TypeScript, package-manager, and module conventions.
-
-6. **Use the project's package manager.**
-   Detect it from lockfiles and `packageManager`:
-   - `package-lock.json` -> npm
-   - `pnpm-lock.yaml` -> pnpm
-   - `yarn.lock` -> yarn
-   - `bun.lock` / `bun.lockb` -> bun
-   - `package.json#packageManager` takes precedence when intentional and consistent.
-
-7. **Do not guess the installed coc-test API.**
-   Inspect the installed package, its CLI help, package metadata, README, or type definitions before relying on options that are not already established in the repository.
-
-8. Add github CI and the CI icon to file README.md when missing.
-
-## coc-test CLI model
-
-The expected coc-test command shape is:
+## coc-test essentials
 
 ```text
-coc-test [options] <files ...>
+coc-test [options] <files ...>   # files or glob patterns
+coc-test --init                  # interactive setup (config, starter test, script, CI)
 ```
 
-Known supported options:
+| Option | Purpose |
+| --- | --- |
+| `--nvim` / `--vim` | Select the editor. Neovim is the default. |
+| `-t, --test-name-pattern <pattern>` | Run only tests whose name matches. |
+| `-u, --use <version>` | Use a specific coc.nvim release tag (latest by default). |
+| `--coc-path <dir>` | Use an existing coc.nvim build; `COC_TEST_COC_PATH` does the same. |
+| `-d, --download` | Force a fresh coc.nvim download. |
+| `-w, --watch` | Rerun affected tests on change. |
+| `--force-exit` | Force exit when the suite leaves handles alive. Prefer fixing the leak. |
 
-```text
--v, --version
--u, --use <version>
---test-name-pattern <pattern>
---nvim
---vim
---force-exit
--h, --help
-```
+- Each test file runs in its own child process with its own editor, coc.nvim instance, and data directory.
+- Tests use `node:test` (`describe`, `it`, `before`, `after`, `beforeEach`, `afterEach`; there is no `beforeAll`/`afterAll`). Imports from `coc.nvim` refer to the live coc.nvim instance.
+- `GITHUB_TOKEN` or `GH_TOKEN` authenticates the coc.nvim download and avoids GitHub API rate limits in CI.
 
-Behavior to rely on:
-
-- `<files ...>` identifies integration-test files and may support glob/fuzzy-style file matching.
-- Neovim is the default editor unless the project deliberately selects Vim.
-- `--vim` runs the integration suite with Vim.
-- `--nvim` explicitly runs with Neovim.
-- `-u, --use <version>` selects the coc.nvim version/tag used by the test harness.
-- `--test-name-pattern <pattern>` narrows execution to matching test names.
-- `--force-exit` is for suites that otherwise leave resources or handles alive.
-
-Before using additional flags or programmatic APIs, verify them from the actual coc-test version used by the project.
-
-## Testing internal modules with entryFile
-
-To exercise the plugin's internal modules (state stores, services, parsers,
-utilities) from integration tests, **prefer coc-test's `entryFile`
-configuration over importing built output**. `coc-test` bundles the configured
-TypeScript source entry at test time, so tests import the source directly and
-share module state with the running plugin.
-
-Configure the source entry in the extension's `package.json`:
+### Prefer `entryFile`
 
 ```json
 {
@@ -90,411 +48,85 @@ Configure the source entry in the extension's `package.json`:
 }
 ```
 
-Test files then import project modules with normal relative paths:
+With `entryFile`, coc-test bundles the source in memory and activates it instead of `main`. Tests import source modules with relative paths and share the same module instances as the running extension:
 
 ```ts
-import { getStore } from '../src/index.ts'
 import { store } from '../src/store.ts'
 ```
 
-These imports resolve to the same module instances the plugin itself runs, so
-state is shared between the plugin and the tests instead of loading independent
-copies. When `entryFile` is configured, integration tests run TypeScript
-sources directly: no `build` step is required and imports never depend on
-compiled output paths under `lib/`/`out/`.
+No build step is needed. coc-test scripts must not prepend `npm run build &&` (or an equivalent), and lifecycle hooks whose only purpose is building before those scripts should be removed.
 
-Verify `entryFile` support in the actual coc-test version used by the project
-before relying on it (see Core rule 7).
+Other `coc-test` keys: `user-settings` (initial coc.nvim settings), `setup` (a `.js`/`.cjs`/`.mjs` module run before the extension loads), `externals` (esbuild externals for the bundle), and `target` (`"commonjs"` by default, or `"esm"`, which requires Node.js 24+).
 
-# Workflow
+Test compiled output only when `entryFile` cannot be used: the installed coc-test lacks it, or tests must exercise the exact `main` artifact. Then build explicitly before running coc-test using the repository's existing build script and script style, and make the test import path resolve to the same file as `main`.
 
-## 1. Inspect the repository
+### Configuration in tests
 
-Read at least:
+`WorkspaceConfiguration.update(key, value)` defaults to the workspace-folder target, which writes a real `.vim/coc-settings.json` that persists across runs. In tests, pass `true` (or `ConfigurationTarget.Global`) to update the user configuration, which coc-test isolates in a per-process temporary directory, and reset every changed value in `after`/`afterEach`. Put fixed initial settings in `coc-test.user-settings`.
 
-```text
-package.json
-tsconfig.json
-the package-manager lockfile
-existing test-runner configuration
-existing integration-test files
-CI workflow files
-```
+## Workflow
 
-Search for:
+### 1. Inspect the repository
 
-```text
-coc.nvim
-@chemzqm/neovim
-helper.setup
-beforeAll
-afterAll
-jest
-vitest
-mocha
-node:test
-NVIM
-VIM
-integration
-e2e
-```
+Read `package.json`, `tsconfig.json`, the lockfile, test-runner configuration, existing integration tests and helpers, and CI workflows. Search for `coc.nvim`, `@chemzqm/neovim`, `helper.setup`, `jest`, `vitest`, `mocha`, `node:test`, `integration`, and `e2e`.
 
-Determine:
+Determine the Node.js constraint, module format, unit-test runner, any existing integration harness and file patterns, whether tests start Vim/Neovim themselves, whether CI provides editors, and whether tests depend on built output. Do not edit until these are known.
 
-- package manager
-- Node.js version constraints
-- TypeScript/module format
-- current unit-test runner
-- current integration-test runner or harness
-- integration-test file patterns
-- whether tests currently spawn/connect to Vim or Neovim themselves
-- whether CI already provides Vim/Neovim
-- whether tests depend on locally built plugin output
+### 2. Classify tests
 
-Do not modify files until these are understood.
+- **Unit tests** (parsers, config transforms, utilities, protocol conversion, mocked APIs): keep on the existing runner.
+- **Integration tests** (anything needing `workspace`, `window`, `commands`, `languages`, `services`, real buffers, Vim/Neovim RPC, or activation/deactivation): run through coc-test.
 
-## 2. Classify tests
+Do not migrate unit tests merely to standardize tooling.
 
-Separate tests into two groups.
+### 3. Add the dependency
 
-### Unit tests
+If `coc-test` is not declared, add it as a dev dependency with the detected package manager (`npm install -D coc-test`, `pnpm add -D coc-test`, `yarn add -D coc-test`, `bun add -d coc-test`). Let the package manager resolve the version unless the repository pins versions. In a monorepo, add it to the package that owns the extension, not automatically to the root.
 
-Keep on the existing runner when they test pure logic such as:
-
-- parsers
-- configuration transforms
-- utilities
-- protocol conversion
-- data structures
-- filesystem-independent logic
-- mocked APIs
-
-### coc integration tests
-
-Use coc-test when they depend on:
-
-- `coc.nvim`
-- `workspace`
-- `window`
-- `commands`
-- `languages`
-- `services`
-- `extensions`
-- actual buffers/documents
-- actual Vim/Neovim RPC
-- coc.nvim activation/deactivation
-- editor commands or state
-
-Do not migrate unrelated unit tests merely to standardize tooling.
-
-Note that coc.nvim test mode disables config-file writes and the
-`/tmp/.vim/coc-settings.json` workspace-folder config persists across test runs,
-so integration tests should use User-target configuration updates and explicit
-resets them.
-
-## 3. Add coc-test as a development dependency
-
-First check whether `coc-test` is already declared.
-
-If missing, install it with the repository's package manager as a **dev dependency**.
-
-Examples only; use the detected package manager:
-
-```bash
-npm install -D coc-test
-pnpm add -D coc-test
-yarn add -D coc-test
-bun add -d coc-test
-```
-
-Do not manually invent a dependency version when the package manager can resolve the intended current version, unless the repository has an explicit pinning policy.
-
-If the repository is a monorepo, add it to the package that owns the coc extension integration tests, not automatically to the workspace root.
-
-## 4. Add explicit package scripts
-
-Prefer scripts with clear responsibilities.
-
-Recommended naming:
+### 4. Add scripts
 
 ```json
 {
   "scripts": {
     "test": "...existing unit-test command...",
-    "test:integration": "coc-test <integration-test-files>",
-    "test:integration:nvim": "coc-test --nvim <integration-test-files>",
-    "test:integration:vim": "coc-test --vim <integration-test-files>"
+    "test:integration": "coc-test \"test/**/*.test.ts\"",
+    "test:integration:vim": "coc-test --vim \"test/**/*.test.ts\""
   }
 }
 ```
 
-The examples assume `coc-test.entryFile` is configured (the preferred way to
-test internal modules), so integration tests run TypeScript sources directly
-and no `build` step is needed. When `entryFile` is configured, remove
-`npm run build &&` (or the package-manager equivalent) from coc-test scripts
-and remove any lifecycle hook whose only purpose is to build before those
-scripts. Only tests that must run against compiled output need a `build`
-prefix (see "Handle build requirements").
+- Use the repository's real test path and quote globs.
+- Keep the existing `test` script unless the repository already treats integration tests as part of it; do not make unit tests silently depend on Vim/Neovim.
+- Add a Vim script only when Vim is supported or used by CI.
 
-Add `"build": "tsc -p tsconfig.json"` to `scripts` when it's missing and
-compiled output is actually needed.
+### 5. Adapt the tests
 
-Only add scripts that provide real value.
+Reuse existing assertions and test cases. Remove only harness code that coc-test now owns: downloading or locating coc.nvim, spawning Vim/Neovim, opening RPC channels, editing runtimepath, loading coc.nvim's `build/index.js`, custom launchers, name filtering, and force-killing the editor.
 
-### Required behavior
+Keep project-specific setup: fixtures, workspace initialization, plugin configuration, activation, mocked services, language-server setup, and cleanup of plugin-owned resources. Do not start a second editor lifecycle inside tests. If a shared helper exists, adapt it once instead of patching every test file.
 
-- Preserve the current `test` script unless the repository already treats integration tests as part of `test`.
-- Avoid silently making normal unit-test execution depend on Vim/Neovim.
-- Prefer one canonical integration script.
-- Add Vim/Neovim-specific scripts when both editors are intentionally supported or used by CI.
-- Quote glob patterns when necessary so the package shell does not expand them differently across platforms.
+Keep coc.nvim activation, API imports, configuration behavior, and Vim/Neovim-specific behavior even when the extension tracks a VS Code upstream.
 
-Example:
+### 6. CI
 
-```json
-{
-  "scripts": {
-    "test:integration": "coc-test \"src/**/*.test.ts\""
-  }
-}
-```
+Keep unit tests as a separate step. Run coc-test after dependencies (and build output, only when required) are ready, install the needed editor (inspect the existing environment; on Ubuntu, `sudo apt-get install -y neovim vim`), and pass `GITHUB_TOKEN` to the coc-test step. Use a small `nvim`/`vim` matrix only when the extension supports Vim; do not multiply the suite across unrelated matrix dimensions.
 
-Use the repository's actual integration-test path instead of copying this example.
+### 7. Verify
 
-## 5. Adapt integration tests to coc-test
+Run in order: install/lockfile consistency, typecheck or build, existing unit tests, one coc-test file, the full coc-test suite, then the Vim variant when supported. Narrow failures with `coc-test -t "<test name>" <file>`.
 
-Reuse the project's existing assertions and test cases wherever possible.
+Attribute failures to the right layer before fixing:
 
-When a test needs the plugin's internal modules, import them from TypeScript
-sources via `entryFile` (see "Testing internal modules with entryFile") so the
-test shares a single module instance with the running plugin instead of a
-separate copy of built output.
+- **Plugin**: activation fails, command missing, edit not applied, leaked resources. Fix the plugin or test setup.
+- **Migration**: required setup was removed, tests run before activation completes, fixture paths changed, cleanup destroys coc-test-owned resources. Fix the migration.
+- **Environment**: editor missing, coc.nvim version unresolved, unsupported option, incompatible Node.js. Fix configuration; do not change plugin behavior to hide it.
 
-Remove only harness code that coc-test makes redundant.
+## Done when
 
-Typical obsolete responsibilities may include custom code that:
+- `coc-test` is a dev dependency with a clear integration script, and the existing unit-test behavior is unchanged.
+- Tests no longer duplicate coc-test's editor/coc.nvim bootstrapping; plugin-specific setup and cleanup remain.
+- Internal modules are imported via `entryFile` (preferred) or verified built output.
+- Build/typecheck, unit tests, and the integration suite pass (Vim too when supported), or the environment blocker is reported.
+- No VS Code test host or removal of coc-specific behavior was introduced.
 
-- downloads coc.nvim
-- finds a coc.nvim release
-- starts Vim/Neovim
-- opens an RPC channel
-- injects coc.nvim into runtimepath
-- manually loads coc.nvim's `build/index.js`
-- coordinates test files through a custom launcher
-- implements test-name filtering already handled by coc-test
-- force-kills the editor process when coc-test owns lifecycle management
-
-Do **not** remove project-specific setup such as:
-
-- fixture creation
-- workspace initialization
-- plugin configuration
-- extension activation
-- mocked external services
-- language-server setup
-- cleanup of plugin-owned resources
-
-### Test lifecycle
-
-Make lifecycle ownership explicit.
-
-A typical integration test should have this shape conceptually:
-
-```ts
-beforeAll(async () => {
-  // plugin-specific setup
-})
-
-afterAll(async () => {
-  // plugin-specific cleanup only
-})
-```
-
-Do not add a second independent Vim/Neovim lifecycle inside the tests when coc-test already owns it.
-
-If the repository already has a shared helper, prefer adapting that helper once rather than patching every test file.
-
-## 6. Preserve extension loading semantics
-
-A coc.nvim extension is not a VSCode extension host.
-
-When the plugin originated from or tracks a VSCode extension:
-
-- keep coc.nvim activation semantics
-- keep coc.nvim API imports
-- keep coc.nvim configuration behavior
-- keep Vim/Neovim-specific behavior
-- do not introduce `vscode-test`, `@vscode/test-*`, Electron, or VSCode extension-host assumptions
-- do not replace coc.nvim APIs with VSCode APIs just to reuse upstream tests
-
-Port the **test intent**, not the VSCode test harness.
-
-## 7. Handle build requirements
-
-Prefer testing TypeScript sources directly through `coc-test.entryFile`
-(see "Testing internal modules with entryFile"): no build step is required and
-tests share module state with the running plugin. Test-related scripts must not
-prepend `npm run build &&` (or an equivalent build command) in this case.
-
-Only when `entryFile` cannot be used — an installed coc-test version without
-the option, or tests that must exercise the exact compiled `main` artifact —
-does the plugin need to be built before coc-test can load it. In that case
-encode the dependency explicitly.
-
-Examples:
-
-```json
-{
-  "scripts": {
-    "test:integration": "npm run build && coc-test \"src/**/*.test.ts\""
-  }
-}
-```
-
-or, when the repository already has a lifecycle hook convention:
-
-```json
-{
-  "scripts": {
-    "pretest:integration": "npm run build",
-    "test:integration": "coc-test \"src/**/*.test.ts\""
-  }
-}
-```
-
-Prefer the project's existing script style.
-
-Do not add redundant builds if the test tooling already compiles/transpiles the test sources (with `entryFile`, that is exactly the case).
-
-## 8. CI integration
-
-Only modify CI when the task includes CI support or existing CI should run integration tests.
-
-When adding CI coverage:
-
-- keep unit tests as a separate step
-- run coc-test only after dependencies and required build artifacts are ready
-- ensure the required editor binary exists
-- prefer Neovim for the primary integration job when the project has no contrary convention
-- add Vim coverage only when the plugin claims or actively maintains Vim compatibility
-- avoid duplicating the same expensive integration suite across unrelated matrix dimensions
-
-Conceptual structure:
-
-```text
-install
-typecheck/build
-unit tests
-coc-test integration tests
-```
-
-If both Vim and Neovim are supported, a small explicit matrix is acceptable.
-
-Do not assume OS package names; inspect the existing CI environment first.
-
-## 9. Verify the migration
-
-Run the narrowest useful checks first.
-
-Recommended order:
-
-```text
-1. package manager install/lockfile consistency
-2. typecheck or build
-3. existing unit tests
-4. one coc-test integration file
-5. full coc-test integration suite
-6. Vim variant, when supported
-```
-
-Useful coc-test debugging patterns:
-
-```bash
-coc-test --test-name-pattern "<specific test>" <file>
-coc-test --nvim <file>
-coc-test --vim <file>
-coc-test --force-exit <file>
-```
-
-Use `--force-exit` only when needed. Prefer finding and cleaning up plugin-owned leaked resources when practical.
-
-## 10. Diagnose failures by ownership
-
-When coc-test fails, identify which layer owns the failure.
-
-### Plugin failure
-
-Examples:
-
-- extension does not activate
-- command is not registered
-- expected buffer edit does not occur
-- language service fails
-- plugin leaves resources alive
-
-Fix the plugin or test setup.
-
-### Test migration failure
-
-Examples:
-
-- old harness setup was removed but still required
-- test executes before extension activation completes
-- fixtures assume old paths
-- cleanup destroys coc-test-owned resources
-
-Fix the test migration.
-
-### coc-test/environment failure
-
-Examples:
-
-- Vim/Neovim executable missing
-- selected coc.nvim version cannot be downloaded/resolved
-- unsupported CLI option
-- incompatible Node.js runtime
-
-Fix configuration/environment rather than changing plugin behavior to hide the problem.
-
-# Preferred change shape
-
-For a normal coc.nvim extension, the ideal patch is small:
-
-```text
-package.json
-lockfile
-shared integration-test helper, if needed
-CI workflow, if requested
-```
-
-Avoid large rewrites unless the existing test harness itself is the thing being replaced.
-
-# Acceptance criteria
-
-The task is complete only when all applicable items are true:
-
-- `coc-test` is a development dependency.
-- There is a clear package script for coc integration tests.
-- Existing unit-test behavior remains intact.
-- Integration tests no longer duplicate coc-test-owned editor/coc.nvim bootstrapping.
-- Plugin-specific setup and cleanup are preserved.
-- The extension still builds/typechecks.
-- Existing unit tests pass.
-- At least one representative coc-test integration test passes.
-- Internal modules are imported from TypeScript sources via `entryFile` (preferred) or from verified built output, without path mismatches.
-- The full integration suite passes when the environment permits it.
-- Vim coverage still works if the repository actively supports Vim.
-- No VSCode test-host dependency was introduced.
-- No coc.nvim-specific behavior was removed merely to match an upstream VSCode plugin.
-
-# Output requirements for the agent
-
-After making changes, report only concrete results:
-
-1. files changed
-2. test command added
-3. old harness code removed or retained, with reason
-4. verification commands run and their result
-5. any remaining blocker
-
-Do not claim integration tests pass unless they were actually executed successfully.
+Report the files changed, scripts added, harness code removed or kept (with reasons), commands run with results, and remaining blockers. Never claim integration tests pass unless they ran successfully.

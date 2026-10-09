@@ -66,7 +66,7 @@ npm install --save-dev \
   '@types/node@^22'
 ```
 
-Keep the generated lockfile. If current package metadata makes these ranges
+Keep the `package-lock.json` that npm creates. If current package metadata makes these ranges
 incompatible, select a mutually compatible set from authoritative package metadata and
 explain the deviation. Do not add `vscode`, `@vscode/test-*`, or another editor host.
 
@@ -85,7 +85,7 @@ Keep `package.json`, source, and tests synchronized:
   explicit requirement.
 
 Replace the hello-command regression with an observable test of the requested behavior.
-Use `node:test` assertions and coc.nvim APIs from the live coc-test runtime. Keep at least
+Use `node:test` with `node:assert/strict` and coc.nvim APIs from the live coc-test runtime. Keep at least
 one editor communication assertion so the suite proves it is not a source-only unit test.
 
 ## Verify the generated extension
